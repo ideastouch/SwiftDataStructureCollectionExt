@@ -1,0 +1,2 @@
+# SwiftDataStructureCollectionExt
+Some Collections Extensions representing Standards Data Structures
