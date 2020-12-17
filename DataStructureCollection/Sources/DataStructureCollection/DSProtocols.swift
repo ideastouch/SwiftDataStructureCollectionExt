@@ -168,9 +168,43 @@ protocol FindUnionProtocol {
   mutating func union(elm1:Elm, elm2:Elm)
 }
 
+
+public
+enum PriorityQueueOrder {
+  case min
+  case max
+}
 public
 protocol PriorityQueueProtocol {
   associatedtype Elm where Elm: Comparable
-  mutating func poll() -> Elm?
-  mutating func add(_ elm:Elm)
+  func peek(_ order:PriorityQueueOrder) -> Elm?
+  mutating func insert(_ elm:Elm, _ order:PriorityQueueOrder)
+  mutating func pull(_ order:PriorityQueueOrder) -> Elm?
+}
+
+public
+extension PriorityQueueOrder {
+  /**
+   Compare two element given as a pair of element and his index and return the pair in order according if self is min or max.
+   The pairs can be both of them nil, any of them or none of them.
+   This function will allows save one if when the PriorityQueue compare a node with his children, check on
+   Array+PriorityQueue func Array.bubbleDown.
+   */
+  func prioritize<Elm:Comparable> (left:(Elm,Int)?, right:(Elm,Int)?) -> ((Elm,Int)?,(Elm,Int)?) {
+    let completionLeft = { ((left!.0,left!.1), (right!.0,right!.1)) }
+    let completionRight = { ((right!.0,right!.1), (left!.0,left!.1)) }
+    switch (left?.0, right?.0) {
+    case (nil,nil):
+      return (nil,nil)
+    case (_,nil):
+      return ((left!.0,left!.1),nil)
+    case (nil,_):
+      return ((right!.0,right!.1),nil)
+    default:
+      switch self {
+      case .min: return left!.0 <= right!.0 ? completionLeft() : completionRight()
+      case .max: return left!.0 >= right!.0 ? completionLeft() : completionRight()
+      }
+    }
+  }
 }
