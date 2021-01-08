@@ -59,12 +59,10 @@ class BFSTest: XCTestCase {
     XCTAssertEqual(shorterPath[end]?.reversed(), [0,1,8,7,3])
   }
   
-  func queuePerformance() {
+  func testQueuePerformance() {
     // This is an example of a performance test case.
     self.measure {
       var queue = Dictionary<String, ListNode<Int> >()
-      
-      
       for value in 1...100_000 { queue.addLast(value) }
       for _ in 1...100_000 { _ = queue.removeFirst() }
     }

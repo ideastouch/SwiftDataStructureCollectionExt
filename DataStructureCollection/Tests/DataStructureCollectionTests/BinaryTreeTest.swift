@@ -28,15 +28,14 @@ class BinaryTreeTest: XCTestCase {
   func testBinaryTree() {
     var binaryTreeTest = Dictionary< Int, BinaryTreeNode<Int> >()
     [11,6,3,1,5,8,15,13,12,14,17,19,22].forEach { binaryTreeTest.insert($0) }
-    let root = binaryTreeTest.root
-    let inorder =  binaryTreeTest.inorder(root).map { "\($0)" }.joined(separator: ",")
+    let inorder =  binaryTreeTest.inorder().map { "\($0)" }.joined(separator: ",")
     XCTAssertEqual(inorder, "1,3,5,6,8,11,12,13,14,15,17,19,22")
     let levelOrder:[Int] = binaryTreeTest.levelorder()
     let levelOrderStr = levelOrder.map { "\($0)" }.joined(separator: ",")
     XCTAssertEqual(levelOrderStr, "11,6,15,3,8,13,17,1,5,12,14,19,22")
   }
   
-  func queuePerformance() {
+  func testQueuePerformance() {
     // This is an example of a performance test case.
     self.measure {
     }

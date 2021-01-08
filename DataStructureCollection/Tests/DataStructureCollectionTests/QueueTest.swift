@@ -38,7 +38,7 @@ class QueueTest: XCTestCase {
     XCTAssertEqual(queue.deque(), nil)
   }
   
-  func queuePerformance() {
+  func testQueuePerformance() {
     // This is an example of a performance test case.
     self.measure {
       var queue = Dictionary<String, ListNode<Int> >()

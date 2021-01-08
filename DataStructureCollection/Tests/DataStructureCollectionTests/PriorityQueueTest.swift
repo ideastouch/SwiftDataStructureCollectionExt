@@ -82,7 +82,7 @@ class PriorityQueueTest: XCTestCase {
     XCTAssertEqual(priorityQueue, [9, 10,11, 15,12])
   }
   
-  func queuePerformance() {
+  func testQueuePerformance() {
     // This is an example of a performance test case.
 //    self.measure {
 //      var queue = Dictionary<String, ListNode<Int> >()

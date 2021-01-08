@@ -6,7 +6,7 @@ import Foundation
 extension Dictionary
 where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value, Key: Comparable {
   var list:[Key] { self.keys.map { $0 } }
-  func nodeOf(_ node:Value?) -> Value? { node?.value != nil  ? self[node!.value!] : nil }
+  func nodeOf(_ node:Value?) -> Value? { node != nil ? self[node!.value] : nil }
   func nodeOf(_ node:Value?, keyPath:KeyPath<Value, Value.Key?>) -> Value? {
     guard let node = self.nodeOf(node), let key = node[keyPath: keyPath] else { return nil }
     return self[key] }
@@ -37,13 +37,14 @@ where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value,
 
 extension Dictionary
 where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value, Key: Comparable {
-  func findNode(_ root:Value?, value:Key) -> Value? {
-    guard let root = root, let rootValue = root.value else { return  nil }
-    if rootValue > value { return self.findNode(self.leftOf(root), value:value) }
-    if rootValue < value { return self.findNode(self.rightOf(root), value: value) }
-    return root
+  func findNode(_ node:Value?, value:Key) -> Value? {
+    guard let nodeValue = node?.value else { return nil }
+    if nodeValue > value, let left = node?.left { return self.findNode(self[left], value:value) }
+    if nodeValue < value, let right = node?.right { return self.findNode(self[right], value: value) }
+    return node
   }
-  mutating func insert(_ root:Value, value:Key, keyPath:WritableKeyPath<Value, Value.Key?>) -> Value? {
+  @discardableResult mutating
+  func insert(_ root:Value, value:Key, keyPath:WritableKeyPath<Value, Value.Key?>) -> Value? {
     guard let next = self.nodeOf(root, keyPath: keyPath) else {
       self[value] = Value(value: value)
       self.link(root, to: self[value], keyPath: keyPath)
@@ -51,18 +52,21 @@ where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value,
     }
     return self.insert(next, value: value)
   }
-  mutating func insert(_ root:Value, value:Key) -> Value? {
-    guard let rootValue = root.value else { return  nil }
-    guard rootValue != value else { return root }
-    let keyPath:WritableKeyPath<Value, Value.Key?> = rootValue > value ? \.left : \.right
+  @discardableResult mutating
+  func insert(_ node:Value, value:Key) -> Value? {
+    let root = node
+    guard root.value != value else { return root }
+    let keyPath:WritableKeyPath<Value, Value.Key?> = root.value > value ? \.left : \.right
     guard let next = self.nodeOf(root, keyPath: keyPath) else {
-      return self.insert(root, value: value, keyPath: keyPath)
+      self[value] = Value(value: value)
+      self.link(root, to: self[value], keyPath: keyPath)
+      return self[value]
     }
     return self.insert(next, value: value)
   }
-  
-  func parentOf(_ root:Value?, value:Key) -> Value? {
-    self.parentOf(self.findNode(root, value: value))
+  func lowerWithKeyPath(_ node:Value?, keyPath:KeyPath<Value, Key?>) -> Value? {
+    guard let lower = self.nodeOf(node, keyPath: keyPath) else { return nil }
+    return self.lowerWithKeyPath(lower, keyPath: keyPath) ?? lower
   }
   public func theSmallerOf(_ node:Value?) -> Value? {
     guard let node = node else { return  nil }
@@ -97,8 +101,8 @@ where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value,
    2. 'with' with left of parent of 'node'
    3. 'with' with right of parent of 'node'
    */
-  mutating func replaceChild(_ node:Value, with:Value?) {
-    self.linkWithParentOf(node, to: node)
+  mutating func replace(_ node:Value, with:Value?) {
+    self.linkWithParentOf(node, to: with)
     self.link(with, to:self.leftOf(node), keyPath: \.left)
     self.link(with, to:self.rightOf(node), keyPath: \.right)
   }
@@ -107,26 +111,31 @@ where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value,
    if the bigger of left exist: switch to MRofL and buble up the left of the MRofL.
    if left exist: bubble up the left.
    if right exist: Bubble up the right
+   return the parent of the lower node removed.
    */
-  mutating func remove(_ root:Value, value:Key?) -> Value? {
-    guard let value = value else { return nil }
-    defer { self[value] = nil }
-    guard let node = self.findNode(root, value: value) else { return nil }
-    if let parent = self.leftOf(node), let next =  self.theBiggerOf(parent) {
-      self.setValueFor(parent, value: nil, keyPath:\.right)
-      self.replaceChild(node, with: next)
-      return self[value]
+  @discardableResult mutating
+  func remove(_ node:Value?) -> Value? {
+    guard let root = node else { return nil }
+    defer { self[root.value] = nil }
+    if root.isLeaf {
+      let parent = self.parentOf(root)
+      self.linkWithParentOf(root, to: nil)
+      return self.nodeOf(parent)
     }
-    if let next = self.leftOf(node) {
-      self.linkWithParentOf(node, to: next)
-      self.setValueFor(next, value:self.rightOf(node), keyPath:\.right)
-      return self[value]
+    if let childPath = root.singleParentChildKeyPath,
+       let child =  self.nodeOf(root, keyPath: childPath) {
+      let parent = self.parentOf(root)
+      self.linkWithParentOf(root, to: child)
+      return self.nodeOf(parent)
     }
-    if let next = self.rightOf(node) {
-      self.linkWithParentOf(node, to: next)
-      return self[value]
+    guard let right = self.rightOf(root), // never can be nil
+          let lower = self.lowerWithKeyPath(right, keyPath: \.left) else {
+      let right = self.rightOf(root)
+      return self.remove(right)
     }
-    return self[value]
+    let parent = self.remove(lower)
+    self.replace(root, with: lower)
+    return self.nodeOf(parent)
   }
 }
 
@@ -168,27 +177,33 @@ extension Dictionary
 where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value, Key: Comparable {
   public typealias Elm = Key
   func root(_ node:Value) -> Value {
-    guard let parent = self.parentOf(node) else { return node }
+    //guard let parent = self.parentOf(node) else { return node } // this optiomization means 10 times faster
+    guard let key = node.parent, let parent = self[key] else { return node }
     return self.root(parent)
   }
+  public
   var root: Value? {
     guard let node = self.first?.value  else { return nil }
     return self.root(node)
   }
+  // Find node is not required here since each this is a dictionary
+  // where each node has access in o(1)
+  public
   func findNode(_ value:Key) -> Value? {
     return self.findNode(self.root, value: value)
   }
-  mutating public func insert(_ elm: Key) {
+  mutating
+  public func insert(_ elm: Key) {
     guard self.isEmpty == false else {
       self[elm] = Value(value: elm)
       return
     }
     guard let root = self.root else { return }
-    _ = self.insert(root, value: elm)
+    self.insert(root, value: elm)
   }
   mutating public func remove(_ elm: Key) -> Key? {
-    guard let root = self.root else { return nil }
-    return self.remove(root, value: elm)?.value
+    guard let root = self[elm] else { return nil }
+    return self.remove(root)?.value
   }
 }
 
@@ -207,13 +222,12 @@ where Value: BinaryTreeNodeProtocol, Key == Value.Key, Value.Key == Value.Value,
   func levelorder<Q:QueueProtocol>(_ node:Value?, q:Q.Type) -> [Value.Value] where Q.QueueValue == Value.Value {
     var queue = Q()
     var result = Array<Value.Value>()
-    if let node = node, let key = node.value { queue.enque(key) }
+    if let node = node { queue.enque(node.value) }
     while let key = queue.deque() {
-      //if let value = node.value {
-      result.append(key) //}
-      guard let value = self[key] else { continue }
-      if let left = self.leftOf( value ), let value = left.value { queue.enque(value) }
-      if let right = self.rightOf( value ), let value = right.value { queue.enque(value) }
+      result.append(key)
+      guard let node = self[key] else { continue }
+      if let left = self.leftOf( node ) { queue.enque(left.value) }
+      if let right = self.rightOf( node ) { queue.enque(right.value) }
     }
     return result
   }

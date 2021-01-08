@@ -40,7 +40,9 @@ class AVLTreeTest: XCTestCase {
     levelOrder = avlTreeTest.levelorder()
     levelOrderStr = levelOrder.map { "\($0.0)(\($0.1))" }.joined(separator: ",")
     XCTAssertEqual(levelOrderStr, "6(2),3(1),11(1),1(0),5(0),8(0),15(0)")
-    [13,12].forEach { avlTreeTest.insert($0) }
+    avlTreeTest.insert(13)
+    avlTreeTest.insert(12)
+//    [13,12].forEach { avlTreeTest.insert($0) }
     /**
         6                              6
       3        11               3              11
@@ -77,7 +79,7 @@ class AVLTreeTest: XCTestCase {
     
   }
   
-  func queuePerformance() {
+  func testQueuePerformance() {
     // This is an example of a performance test case.
     self.measure {
     }

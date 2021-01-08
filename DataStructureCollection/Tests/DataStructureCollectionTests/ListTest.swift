@@ -38,7 +38,7 @@ class ListTest: XCTestCase {
     XCTAssertEqual(list.removeFirst(), nil)
   }
   
-  func queuePerformance() {
+  func testQueuePerformance() {
     // This is an example of a performance test case.
     self.measure {
       var queue = Dictionary<String, ListNode<Int> >()

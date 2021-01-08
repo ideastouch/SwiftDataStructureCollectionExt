@@ -77,37 +77,82 @@ public
 protocol BinaryTreeNodeProtocol {
   associatedtype Key:Hashable
   associatedtype Value
-  var value:Value? { get set }
+  var value:Value { get set }
   var parent:Key? { get set }
   var left:Key? { get set }
   var right:Key? { get set }
-  init()
+  init(value:Value)
 }
 
 public
 protocol AVLTreeNodeProtocol: BinaryTreeNodeProtocol {
-  var height:Int? { get set }
- init()
+  var height:Int { get set }
 }
 
 public
-enum AVLTreeRotation: String {
-  case left = "Left"
-  case right = "Right"
-  case leftRight = "LeftRight"
-  case rightLeft = "RightLeft"
+enum AVLTreeRotation {
+  case left
+  case right
+  case leftRight
+  case rightLeft
+}
+public protocol AVLBalanced {
+  var balanced:Bool { get }
+}
+public protocol AVLRotationNeeded {
+  var rotationNeedeed:Bool { get }
+}
+public
+enum AVLBalanceFactor {
+  case balanced
+  case leftHeavy(Int)
+  case rightHeavy(Int)
+}
+
+extension AVLBalanceFactor: AVLBalanced, AVLRotationNeeded {
+  public var balanced: Bool {
+    guard case .balanced = self else { return false }
+    return true
+  }
+  public var rotationNeedeed:Bool {
+    switch self {
+    case .leftHeavy(let factor) where factor == -2:
+      return true
+    case .rightHeavy(let factor) where factor == 2:
+      return true
+    default:
+      return false
+    }
+  }
+}
+extension AVLBalanceFactor {
+  init(factor:Int) {
+    switch factor {
+    case _ where factor < 0: self = .leftHeavy(factor)
+    case _ where factor > 0: self = .rightHeavy(factor)
+    default: self = .balanced
+    }
+  }
 }
 
 
 public
 extension BinaryTreeNodeProtocol {
-  init(value:Value) {
-    self.init()
-    self.value = value
-  }
   init(value:Value, parent:Key?) {
     self.init(value:value)
     self.parent = parent
+  }
+  var isRoot:Bool { self.parent != nil }
+  var isLeaf:Bool { self.left == nil && self.right == nil }
+  var singleParentChildKeyPath: WritableKeyPath<Self, Key?>? {
+    switch (self.left, self.right) {
+    case (let child,nil) where child != nil:
+      return \.left
+    case (nil,let child) where child != nil:
+      return \.right
+    default:
+      return nil
+    }
   }
 }
 public
@@ -129,16 +174,12 @@ protocol BinaryTreeProtocol {
   func inorder() -> [Elm]
   func inorderRight() -> [Elm]
   func postorder() -> [Elm]
-//  func levelorder() -> [Elm]
 }
 
 public
 protocol AVLTreeProtocol: BinaryTreeProtocol {
   mutating func insert(_ elm:Elm)
   mutating func remove(_ elm:Elm) -> Elm?
-  
-  /// Extractors
-//  func levelorder() -> [(Elm,Int)]
 }
 
 
